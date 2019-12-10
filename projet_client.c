@@ -134,6 +134,7 @@ int main (int argc, char **argv)
 		fprintf (stderr, "Impossible d'envoyer la taille du message.\n");
 		close (local_socket);
 		free (str_buffer);
+		free_pstring (&user_entry);
 		return EXIT_FAILURE;
 	}
 	for (str_parser = pseudo, taille_envoyee = 0; taille_envoyee < longueur_chaine; )
@@ -143,6 +144,7 @@ int main (int argc, char **argv)
 			fprintf (stderr, "Impossible d'envoyer le message.\n");
 			close (local_socket);
 			free (str_buffer);
+			free_pstring (&user_entry);
 			return EXIT_FAILURE;
 		}
 		taille_envoyee += res;
@@ -170,12 +172,13 @@ int main (int argc, char **argv)
             perror ("Problème de multiplexage: ");
             close (local_socket);
             free (str_buffer);
+            free_pstring (&user_entry);
             return EXIT_FAILURE;
         }
 
         if (FD_ISSET (STDIN_FILENO, &lecture)) 
         {
-			/*------------------Modif a faire ----------------*/
+			/*------------------Modif a faire ----------------*//*
             fgets (str_buffer, TAILLE_BUFFER, stdin);
             longueur_chaine = strlen (str_buffer);
 
@@ -190,21 +193,51 @@ int main (int argc, char **argv)
 				close (local_socket);
 				free (str_buffer);
 				return EXIT_SUCCESS;
-			}
+			}*/
+			/*------------------Fin 1ère modif a faire ----------------*/
+			/*----------------------new-------------------------------*/
+			res = secure_read_line (&user_entry, stdin);
+            if (res == -1)
+            {
+                perror ("Lecture entrée client: ");
+                free_pstring (&user_entry);
+                free (str_buffer);
+				close (local_socket);
+                return EXIT_FAILURE;
+            }
 			
-
+            // Test si l'entrée fournie est la commande de sortie
+            if (!strcmp (EXIT_CMD, user_entry.str))
+            {
+                fprintf (stdout, "\nExiting\n");
+                free_pstring (&user_entry);
+                close (local_socket);
+                free (str_buffer);
+                return EXIT_FAILURE;
+            }
+            
+            longueur_chaine = user_entry.len;
+            
+            printf("message du client : %s\n", user_entry.str);
+			/*----------------------------end new------------------*/
+			printf("len : %i\n", user_entry.len);
+			//printf("n value %i\n", "\n");
+			//printf("0 value %i\n", "\0");
+			//printf("dernière lettre : %i\n", user_entry.str[user_entry.len]);
+			
             packet_size = htonl (longueur_chaine);
 
             res = send (local_socket, &packet_size, sizeof (uint32_t), 0);
             if (res == -1)
             {
                 fprintf (stderr, "Impossible d'envoyer la taille du message.\n");
+                free_pstring (&user_entry);
                 close (local_socket);
                 free (str_buffer);
                 return EXIT_FAILURE;
             }
 			
-            for (str_parser = str_buffer, taille_envoyee = 0; taille_envoyee < longueur_chaine; )
+            for (str_parser = user_entry.str, taille_envoyee = 0; taille_envoyee < longueur_chaine; )
             {
                 res = send (local_socket, str_parser, longueur_chaine - taille_envoyee, 0);
                 if (res == -1)
@@ -212,6 +245,7 @@ int main (int argc, char **argv)
                     fprintf (stderr, "Impossible d'envoyer le message.\n");
                     close (local_socket);
                     free (str_buffer);
+                    free_pstring (&user_entry);
                     return EXIT_FAILURE;
                 }
 
@@ -219,7 +253,7 @@ int main (int argc, char **argv)
                 str_parser += res;
             }
         }
-        /*------------------Fin 1ère modif a faire ----------------*/
+        
         
         if (FD_ISSET (local_socket, &lecture))
         {
@@ -244,6 +278,7 @@ int main (int argc, char **argv)
 				fprintf (stderr, "Erreur à la réception de la taille.\n");
 				close (local_socket);
 				free (str_buffer);
+				free_pstring (&user_entry);
 				return EXIT_FAILURE;
 			}
 			longueur_chaine = ntohl (packet_size);
@@ -255,6 +290,7 @@ int main (int argc, char **argv)
 				if (!tmp_buf) {
 					fprintf (stderr, "Réallocation impossible\n");
 					free (str_buffer);
+					free_pstring (&user_entry);
 					close (local_socket);
 					exit (EXIT_FAILURE);
 				}
@@ -298,6 +334,7 @@ int main (int argc, char **argv)
     }
 
 	free (str_buffer);
+	free_pstring (&user_entry);
     close (local_socket);
     return EXIT_SUCCESS;
 }				/* ----------  end of function main  ---------- */
