@@ -1,5 +1,6 @@
 #define	_DEFAULT_SOURCE			    /* Utilise les implémentation POSIX des fonctions réseaux */
 #define	TAILLE_BUFFER  1024			/* Taille initiale du buffer */
+#define EXIT_CMD  "!quit"
 
 #include <stdlib.h>
 #include <string.h>
@@ -11,6 +12,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <errno.h>
+#include "personal_strings.h"
 
 #define max(x,y) ( x < y ? y : x )              /* Instruction ternaire pour déterminer le maximum entre deux nombres */
 
@@ -27,13 +29,17 @@ int main (int argc, char **argv)
     int local_socket;
     uint32_t packet_size;
     int longueur_chaine;
+    int taille_courante = 0;
 
+
+	pstring_t user_entry = empty_pstring ();
 	char * pseudo; 
-    char *str_parser;
+    char * str_parser;
     int taille_envoyee = 0;
 
     // Les vriables nécessaires pour la réception d'un message
-    char str_buffer[TAILLE_BUFFER];
+    //char str_buffer[TAILLE_BUFFER];
+    char *str_buffer;
     int taille_recue = 0;
 
     // Variable de multiplexage
@@ -113,12 +119,21 @@ int main (int argc, char **argv)
         return EXIT_FAILURE;
     }
 
+	str_buffer	= (char *) malloc (sizeof(char) * TAILLE_BUFFER);
+    if (!str_buffer) {
+	    perror ("Intialisation mémoire buffer de réception");
+        close (local_socket);
+        return EXIT_FAILURE;
+    }
+	taille_courante=TAILLE_BUFFER;
+	
 	longueur_chaine = strlen (pseudo);
 	packet_size = htonl (longueur_chaine);
     res = send (local_socket, &packet_size, sizeof (uint32_t), 0);
     if (res == -1){
 		fprintf (stderr, "Impossible d'envoyer la taille du message.\n");
 		close (local_socket);
+		free (str_buffer);
 		return EXIT_FAILURE;
 	}
 	for (str_parser = pseudo, taille_envoyee = 0; taille_envoyee < longueur_chaine; )
@@ -127,6 +142,7 @@ int main (int argc, char **argv)
 		if (res == -1){
 			fprintf (stderr, "Impossible d'envoyer le message.\n");
 			close (local_socket);
+			free (str_buffer);
 			return EXIT_FAILURE;
 		}
 		taille_envoyee += res;
@@ -153,11 +169,13 @@ int main (int argc, char **argv)
         {
             perror ("Problème de multiplexage: ");
             close (local_socket);
+            free (str_buffer);
             return EXIT_FAILURE;
         }
 
         if (FD_ISSET (STDIN_FILENO, &lecture)) 
         {
+			/*------------------Modif a faire ----------------*/
             fgets (str_buffer, TAILLE_BUFFER, stdin);
             longueur_chaine = strlen (str_buffer);
 
@@ -167,11 +185,13 @@ int main (int argc, char **argv)
                 longueur_chaine--;
             }
             
-            if (!strcmp(str_buffer,"!quit")){
+            if (!strcmp(str_buffer,EXIT_CMD)){
 				printf("here");
 				close (local_socket);
+				free (str_buffer);
 				return EXIT_SUCCESS;
 			}
+			
 
             packet_size = htonl (longueur_chaine);
 
@@ -180,9 +200,10 @@ int main (int argc, char **argv)
             {
                 fprintf (stderr, "Impossible d'envoyer la taille du message.\n");
                 close (local_socket);
+                free (str_buffer);
                 return EXIT_FAILURE;
             }
-
+			
             for (str_parser = str_buffer, taille_envoyee = 0; taille_envoyee < longueur_chaine; )
             {
                 res = send (local_socket, str_parser, longueur_chaine - taille_envoyee, 0);
@@ -190,6 +211,7 @@ int main (int argc, char **argv)
                 {
                     fprintf (stderr, "Impossible d'envoyer le message.\n");
                     close (local_socket);
+                    free (str_buffer);
                     return EXIT_FAILURE;
                 }
 
@@ -197,17 +219,52 @@ int main (int argc, char **argv)
                 str_parser += res;
             }
         }
+        /*------------------Fin 1ère modif a faire ----------------*/
         
         if (FD_ISSET (local_socket, &lecture))
         {
+		/*----------------before--------------------------------*/
+			/*
             res = recv (local_socket, &packet_size, sizeof (uint32_t), 0);
             if (res == -1)
             {
                 fprintf (stderr, "Erreur à la réception de la taille.\n");
                 close (local_socket);
+                free (str_buffer);
                 return EXIT_FAILURE;
             }
             longueur_chaine = ntohl (packet_size);
+            * /
+            /*----------------before--------------------------------*/
+            /*--------------ctrl v -------------*/
+            res = recv (local_socket, &packet_size, sizeof (uint32_t), 0);
+			if (res == -1)
+			{
+				// perror ("Erreur à la réception de la taille: ");
+				fprintf (stderr, "Erreur à la réception de la taille.\n");
+				close (local_socket);
+				free (str_buffer);
+				return EXIT_FAILURE;
+			}
+			longueur_chaine = ntohl (packet_size);
+			if (taille_courante <= longueur_chaine) /* Ne pas oublier le caractère \0 ! */
+			{
+				char *tmp_buf;
+
+				tmp_buf	= realloc (str_buffer, sizeof(char) * (longueur_chaine + 1));
+				if (!tmp_buf) {
+					fprintf (stderr, "Réallocation impossible\n");
+					free (str_buffer);
+					close (local_socket);
+					exit (EXIT_FAILURE);
+				}
+
+				str_buffer = tmp_buf;
+				taille_courante=longueur_chaine + 1;
+			}
+            
+            /*--------------fin ctrl v-----------*/
+            /*------------------Modif a faire ----------------*/
             for (str_parser = str_buffer, taille_recue = 0; taille_recue < longueur_chaine; )
             {
                 res = recv (local_socket, str_parser, longueur_chaine - taille_recue, 0);
@@ -237,8 +294,10 @@ int main (int argc, char **argv)
                 printf ("Message recu: %s\n", str_buffer);
             }
         }
+        /*------------------Fin 2ème Modif a faire ----------------*/
     }
 
+	free (str_buffer);
     close (local_socket);
     return EXIT_SUCCESS;
 }				/* ----------  end of function main  ---------- */
