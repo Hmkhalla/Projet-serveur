@@ -194,7 +194,7 @@ secure_read_line (pstring_t *pstr, FILE *stream)
     if (*parser == '\n')
     {
         *parser = '\0';
-        //pstr->len--;
+        pstr->len--;
     }
     return 1;
 }		/* -----  end of function secure_read_line  ----- */

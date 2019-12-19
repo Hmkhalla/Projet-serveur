@@ -1,5 +1,5 @@
 #define	_DEFAULT_SOURCE			    /* Utilise les implémentation POSIX des fonctions réseaux */
-#define	TAILLE_BUFFER  1024			/* Taille initiale du buffer */
+#define	INIT_TAILLE_BUFFER  1024			/* Taille initiale du buffer */
 #define EXIT_CMD  "!quit"
 
 #include <stdlib.h>
@@ -14,33 +14,34 @@
 #include <errno.h>
 #include "personal_strings.h"
 
-#define max(x,y) ( x < y ? y : x )              /* Instruction ternaire pour déterminer le maximum entre deux nombres */
 
-
+/*
+ * ===  FUNCTION  ======================================================================
+ *         Name:  main
+ *  Description:  main function
+ * =====================================================================================
+ */
 int main (int argc, char **argv)
 {
     
     struct sockaddr_in adresse_client;
     struct sockaddr_in adresse_serveur;
+    int local_socket;
 
     int res;
     int port;
 
-    int local_socket;
+    
     uint32_t packet_size;
     int longueur_chaine;
     int taille_courante = 0;
-
+    int taille_envoyee = 0;
+    int taille_recue = 0;
 
 	pstring_t user_entry = empty_pstring ();
-	char * pseudo; 
+	char * pseudo = argv[3];
     char * str_parser;
-    int taille_envoyee = 0;
-
-    // Les vriables nécessaires pour la réception d'un message
-    //char str_buffer[TAILLE_BUFFER];
     char *str_buffer;
-    int taille_recue = 0;
 
     // Variable de multiplexage
     fd_set lecture;
@@ -51,14 +52,11 @@ int main (int argc, char **argv)
 
     if (argc != 4)
     {
-        fprintf (stderr, "parrot_client adr_ip port pseudo\n");
+        fprintf (stderr, "maranga_cli adr_ip port pseudo\n");
         return EXIT_FAILURE;
     }
     
-    
-
-    // Adresse ip
-    res = inet_aton (argv[1], &adresse_serveur.sin_addr);
+    res = inet_aton (argv[1], &adresse_serveur.sin_addr); //Adresse serveur 
     if (!res)                                   /* inet_aton retourne 0 en cas d'erreur */
     {
         fprintf (stderr, "Impossible de convertir l'adresse <%s>\n", argv[1]);
@@ -67,7 +65,6 @@ int main (int argc, char **argv)
 
     // Port
     errno = 0;
-
     port = strtol (argv[2], NULL, 10);                
     if (errno != 0 && port == 0)
     {
@@ -75,8 +72,6 @@ int main (int argc, char **argv)
         return EXIT_FAILURE;
     }
     
-    pseudo = argv[3];
-
     adresse_serveur.sin_port = htons (port);     
     adresse_serveur.sin_family = AF_INET;
 
@@ -85,7 +80,7 @@ int main (int argc, char **argv)
     local_socket = socket (PF_INET, SOCK_STREAM, 0);
     if (local_socket == -1)
     {
-        fprintf (stderr, "Imposible d'ouvrir le socket\n");
+        perror ("Impossible d'ouvrir le socket: ");
         return EXIT_FAILURE;
     }
 
@@ -94,22 +89,19 @@ int main (int argc, char **argv)
     adresse_client.sin_port = htons (0);            /* On laisse le choix du port à l'OS */
     adresse_client.sin_addr.s_addr = htonl (INADDR_ANY);
 
-    // 3. Lien entre le descripteur de fichier et la structure (optionnel pour le client mais
-    // recommandé)
+    // 3. Lien entre le descripteur de fichier et la structure
     res = bind (local_socket, (struct sockaddr *) &adresse_client, sizeof (struct sockaddr_in));
     if (res == -1)
     {
-        fprintf (stderr, "Impossible de lier le socket et la structure d'adresse.\n");
-        close (local_socket);                   /* On ferme le socket avant de quitter */
+        perror ("Impossible de lier le socket et la structure d'adresse: ");
+        close (local_socket);  
         return EXIT_FAILURE;
     }
 
 
 
-    /*-----------------------------------------------------------------------------
-     *  Connexion
-     *-----------------------------------------------------------------------------*/
-    /* {{{ -------- Connexion -------- */
+/*------------------------------------------------CONNEXION-------------------------------------------------------*/
+/*----------------------------------------------------------------------------------------------------------------*/
 
     res =  connect (local_socket, (struct sockaddr *) &adresse_serveur, sizeof (struct sockaddr_in));
     if (res == -1)
@@ -119,13 +111,13 @@ int main (int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-	str_buffer	= (char *) malloc (sizeof(char) * TAILLE_BUFFER);
+	str_buffer	= (char *) malloc (sizeof(char) * INIT_TAILLE_BUFFER);
     if (!str_buffer) {
 	    perror ("Intialisation mémoire buffer de réception");
         close (local_socket);
         return EXIT_FAILURE;
     }
-	taille_courante=TAILLE_BUFFER;
+	taille_courante=INIT_TAILLE_BUFFER;
 	
 	longueur_chaine = strlen (pseudo);
 	packet_size = htonl (longueur_chaine);
@@ -154,14 +146,12 @@ int main (int argc, char **argv)
     /*-----------------------------------------------------------------------------
      *  Communication
      *-----------------------------------------------------------------------------*/
-    /* {{{ -------- Communication -------- */
 
     while (1)
     {
         /*-----------------------------------------------------------------------------
          *  Multiplexage
          *-----------------------------------------------------------------------------*/
-        /* {{{ -------- Multiplexage -------- */
         FD_ZERO (&lecture);
         FD_SET (STDIN_FILENO, &lecture);            /* l'entrée standard */
         FD_SET (local_socket, &lecture);            /* le socket connecté au serveur */
@@ -177,25 +167,7 @@ int main (int argc, char **argv)
         }
 
         if (FD_ISSET (STDIN_FILENO, &lecture)) 
-        {
-			/*------------------Modif a faire ----------------*//*
-            fgets (str_buffer, TAILLE_BUFFER, stdin);
-            longueur_chaine = strlen (str_buffer);
-
-            if (str_buffer[longueur_chaine - 1] == '\n')
-            {
-                str_buffer[longueur_chaine - 1] = '\0';
-                longueur_chaine--;
-            }
-            
-            if (!strcmp(str_buffer,EXIT_CMD)){
-				printf("here");
-				close (local_socket);
-				free (str_buffer);
-				return EXIT_SUCCESS;
-			}*/
-			/*------------------Fin 1ère modif a faire ----------------*/
-			/*----------------------new-------------------------------*/
+        {/*-------------------lecture clavier ------------------*/
 			res = secure_read_line (&user_entry, stdin);
             if (res == -1)
             {
@@ -206,25 +178,16 @@ int main (int argc, char **argv)
                 return EXIT_FAILURE;
             }
 			
-            // Test si l'entrée fournie est la commande de sortie
             if (!strcmp (EXIT_CMD, user_entry.str))
-            {
+            {/*-------------------Commande de sortie utilisateur--------------*/
                 fprintf (stdout, "\nExiting\n");
                 free_pstring (&user_entry);
                 close (local_socket);
                 free (str_buffer);
-                return EXIT_FAILURE;
+                return EXIT_SUCCESS;
             }
             
             longueur_chaine = user_entry.len;
-            
-            printf("message du client : %s\n", user_entry.str);
-			/*----------------------------end new------------------*/
-			printf("len : %i\n", user_entry.len);
-			//printf("n value %i\n", "\n");
-			//printf("0 value %i\n", "\0");
-			//printf("dernière lettre : %i\n", user_entry.str[user_entry.len]);
-			
             packet_size = htonl (longueur_chaine);
 
             res = send (local_socket, &packet_size, sizeof (uint32_t), 0);
@@ -256,25 +219,10 @@ int main (int argc, char **argv)
         
         
         if (FD_ISSET (local_socket, &lecture))
-        {
-		/*----------------before--------------------------------*/
-			/*
-            res = recv (local_socket, &packet_size, sizeof (uint32_t), 0);
-            if (res == -1)
-            {
-                fprintf (stderr, "Erreur à la réception de la taille.\n");
-                close (local_socket);
-                free (str_buffer);
-                return EXIT_FAILURE;
-            }
-            longueur_chaine = ntohl (packet_size);
-            * /
-            /*----------------before--------------------------------*/
-            /*--------------ctrl v -------------*/
-            res = recv (local_socket, &packet_size, sizeof (uint32_t), 0);
+        {/*---------------------------------------lecture serveur----------------------------*/
+			res = recv (local_socket, &packet_size, sizeof (uint32_t), 0);
 			if (res == -1)
 			{
-				// perror ("Erreur à la réception de la taille: ");
 				fprintf (stderr, "Erreur à la réception de la taille.\n");
 				close (local_socket);
 				free (str_buffer);
@@ -284,23 +232,16 @@ int main (int argc, char **argv)
 			longueur_chaine = ntohl (packet_size);
 			if (taille_courante <= longueur_chaine) /* Ne pas oublier le caractère \0 ! */
 			{
-				char *tmp_buf;
-
-				tmp_buf	= realloc (str_buffer, sizeof(char) * (longueur_chaine + 1));
-				if (!tmp_buf) {
+				str_buffer	= realloc (str_buffer, sizeof(char) * (longueur_chaine + 1));
+				if (!str_buffer) {
 					fprintf (stderr, "Réallocation impossible\n");
 					free (str_buffer);
 					free_pstring (&user_entry);
 					close (local_socket);
-					exit (EXIT_FAILURE);
+					return EXIT_FAILURE;
 				}
-
-				str_buffer = tmp_buf;
 				taille_courante=longueur_chaine + 1;
 			}
-            
-            /*--------------fin ctrl v-----------*/
-            /*------------------Modif a faire ----------------*/
             for (str_parser = str_buffer, taille_recue = 0; taille_recue < longueur_chaine; )
             {
                 res = recv (local_socket, str_parser, longueur_chaine - taille_recue, 0);
@@ -312,8 +253,10 @@ int main (int argc, char **argv)
                 else if (res == 0)
                 {
                     printf ("Fermeture socket côté serveur.\n");
-
-                    break;
+					free (str_buffer);
+					free_pstring (&user_entry);
+					close (local_socket);
+					return EXIT_FAILURE;
                 }
 
                 taille_recue += res;
@@ -330,7 +273,6 @@ int main (int argc, char **argv)
                 printf ("Message recu: %s\n", str_buffer);
             }
         }
-        /*------------------Fin 2ème Modif a faire ----------------*/
     }
 
 	free (str_buffer);
