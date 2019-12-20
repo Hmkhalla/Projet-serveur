@@ -1,12 +1,11 @@
 //MKHALLATI Hassan 000459680
 #include "lib.h"
-#define INIT_CAPACITY 2
+
+#define INIT_CAPACITY 5
 
 void delete_table(structArray* Array)
 {
-	/*
-    libère la mémoire du tableau de joueur et ensuite la structure tableau
-	*/
+	for (int i = 0; i<Array->len; i++) free(Array->table[i].pseudo);
 	free(Array->table);
 	free(Array);
 }
@@ -32,7 +31,7 @@ structArray* init_memory()
 	return Table;
 }
 
-structArray* add_player(structArray* Array, char* string, int*indexPlayer)
+int add_player(structArray* Array, char* string, int*indexPlayer)
 {
 	/*
 	Rajoute le struct joueur au tableau. Réallocation de la mémoire si nécessaire. Les clés du tableau sont les id des joueurs (afin d'obtenir une recherche rapide des joueurs)
@@ -40,38 +39,33 @@ structArray* add_player(structArray* Array, char* string, int*indexPlayer)
 	*/
 	int index;
 	for (index = 0; index < Array->len; index++){
-		printf("entry :%s tableau :%s\n", string, Array->table[index].pseudo);
-		if (!strcmp(Array->table[index].pseudo, string)){
-			printf("find !\n"); break;
-		}
+		if (!strcmp(Array->table[index].pseudo, string)) break;
 	}
-	printf("index %d\n", index);
 	if (index == Array->capacity){
 		//Dépassement mémoire
 		Array->capacity *=2;
-		if ((Array->table = (player*) realloc(Array->table, Array->capacity*sizeof(player))) == NULL)
+		player* tmp_table = (player*) realloc(Array->table, Array->capacity*sizeof(player));
+		if (!tmp_table)
 		{ //erreur de réallocation de mémoire
-			delete_table(Array);
-			return NULL;
+			printf("Echec de réallocation de mémoire \n");
+			return -1;
 		}
+		Array->table = tmp_table;
 		Array->len += 1;
 		Array->table[index].pseudo = string;
 		Array->table[index].score = 0;
 		*indexPlayer =  index;
-		//printf("réalloction d'un joueur, index%d, len %d, capa %d\n", index, Array->len, Array->capacity);
-		printf("réalloction du joueur %s, index %d, score %d, len %d, capa %d\n", Array->table[index].pseudo, index,Array->table[index].score, Array->len, Array->capacity);
+		printf("réalloction et ajout du joueur %s\n", Array->table[index].pseudo);
 	} else if(index==Array->len){
 		Array->len += 1;
 		Array->table[index].pseudo = string;
 		Array->table[index].score = 0;
 		*indexPlayer = index;
-		//printf("ajout d'un joueur, index%d, len %d, capa %d\n", index, Array->len, Array->capacity);
-		printf("ajout du joueur %s, index %d, score %d, len %d, capa %d\n", Array->table[index].pseudo, index,Array->table[index].score, Array->len, Array->capacity);
+		printf("Ajout du joueur %s\n", Array->table[index].pseudo);
 	} else {
 		*indexPlayer = index;
-		printf("chargement du joueur %s, index %d, score %d, len %d, capa %d\n", Array->table[index].pseudo, index,Array->table[index].score, Array->len, Array->capacity);
 	}
-	return Array;
+	return 1;
 }
 
 

@@ -1,3 +1,4 @@
+//MKHALLATI Hassan 000459680
 #define	_DEFAULT_SOURCE			    /* Utilise les implémentation POSIX des fonctions réseaux */
 #define	INIT_TAILLE_BUFFER  1024			/* Taille initiale du buffer */
 #define EXIT_CMD  "!quit"
@@ -39,8 +40,8 @@ int main (int argc, char **argv)
     int taille_envoyee = 0;
     int taille_recue = 0;
 
-	pstring_t user_entry = empty_pstring ();
-	char * pseudo = argv[3];
+	pstring_t user_entry;
+	char * pseudo;
     char * str_parser;
     char *str_buffer;
 
@@ -56,6 +57,7 @@ int main (int argc, char **argv)
         fprintf (stderr, "maranga_cli adr_ip port pseudo\n");
         return EXIT_FAILURE;
     }
+    pseudo = argv[3];
     
     res = inet_aton (argv[1], &adresse_serveur.sin_addr); //Adresse serveur 
     if (!res)                                   /* inet_aton retourne 0 en cas d'erreur */
@@ -69,7 +71,7 @@ int main (int argc, char **argv)
     port = strtol (argv[2], NULL, 10);                
     if (errno != 0 && port == 0)
     {
-        perror ("Impossible de convertir le port :");
+        perror ("Impossible de convertir le port: ");
         return EXIT_FAILURE;
     }
     
@@ -112,22 +114,14 @@ int main (int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-	str_buffer	= (char *) malloc (sizeof(char) * INIT_TAILLE_BUFFER);
-    if (!str_buffer) {
-	    perror ("Intialisation mémoire buffer de réception");
-        close (local_socket);
-        return EXIT_FAILURE;
-    }
-	taille_courante=INIT_TAILLE_BUFFER;
-	
+/*------------------------------------------------Envoie pseudo---------------------------------------------------*/
+/*----------------------------------------------------------------------------------------------------------------*/
 	longueur_chaine = strlen (pseudo);
 	packet_size = htonl (longueur_chaine);
     res = send (local_socket, &packet_size, sizeof (uint32_t), 0);
     if (res == -1){
 		fprintf (stderr, "Impossible d'envoyer la taille du message.\n");
 		close (local_socket);
-		free (str_buffer);
-		free_pstring (&user_entry);
 		return EXIT_FAILURE;
 	}
 	for (str_parser = pseudo, taille_envoyee = 0; taille_envoyee < longueur_chaine; )
@@ -136,23 +130,32 @@ int main (int argc, char **argv)
 		if (res == -1){
 			fprintf (stderr, "Impossible d'envoyer le message.\n");
 			close (local_socket);
-			free (str_buffer);
-			free_pstring (&user_entry);
 			return EXIT_FAILURE;
 		}
 		taille_envoyee += res;
 		str_parser += res;
 	}
-    
-    /*-----------------------------------------------------------------------------
-     *  Communication
-     *-----------------------------------------------------------------------------*/
+
+/*----------------------------------------INIT variable de communication------------------------------------------*/
+/*----------------------------------------------------------------------------------------------------------------*/   
+    str_buffer	= (char *) malloc (sizeof(char) * INIT_TAILLE_BUFFER);
+    if (!str_buffer) {
+	    perror ("Intialisation mémoire buffer de réception");
+        close (local_socket);
+        return EXIT_FAILURE;
+    }
+	taille_courante=INIT_TAILLE_BUFFER;
+	
+	user_entry = empty_pstring ();
+
+
+/*------------------------------------------------Communication---------------------------------------------------*/
+/*----------------------------------------------------------------------------------------------------------------*/
 
     while (1)
     {
-        /*-----------------------------------------------------------------------------
-         *  Multiplexage
-         *-----------------------------------------------------------------------------*/
+        /*------------------------------------------------Multiplexage----------------------------------------------------*/
+		/*----------------------------------------------------------------------------------------------------------------*/
         FD_ZERO (&lecture);
         FD_SET (STDIN_FILENO, &lecture);            /* l'entrée standard */
         FD_SET (local_socket, &lecture);            /* le socket connecté au serveur */
@@ -212,7 +215,6 @@ int main (int argc, char **argv)
                     free_pstring (&user_entry);
                     return EXIT_FAILURE;
                 }
-
                 taille_envoyee += res;
                 str_parser += res;
             }
@@ -233,14 +235,16 @@ int main (int argc, char **argv)
 			longueur_chaine = ntohl (packet_size);
 			if (taille_courante <= longueur_chaine) /* Ne pas oublier le caractère \0 ! */
 			{
-				str_buffer	= realloc (str_buffer, sizeof(char) * (longueur_chaine + 1));
-				if (!str_buffer) {
+				char *tmp_buf;
+				tmp_buf	= realloc (str_buffer, sizeof(char) * (longueur_chaine + 1));
+				if (!tmp_buf) {
 					fprintf (stderr, "Réallocation impossible\n");
 					free (str_buffer);
 					free_pstring (&user_entry);
 					close (local_socket);
 					return EXIT_FAILURE;
 				}
+				str_buffer = tmp_buf;
 				taille_courante=longueur_chaine + 1;
 			}
             for (str_parser = str_buffer, taille_recue = 0; taille_recue < longueur_chaine; )
@@ -275,7 +279,6 @@ int main (int argc, char **argv)
             }
         }
     }
-
 	free (str_buffer);
 	free_pstring (&user_entry);
     close (local_socket);

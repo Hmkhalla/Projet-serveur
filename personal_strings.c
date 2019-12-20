@@ -1,21 +1,4 @@
-/*
- * =====================================================================================
- *
- *       Filename:  personal_strings.c
- *
- *    Description:  Une bibliothèque pour gérer les chaînes de caractères 
- *
- *        Version:  1.0
- *        Created:  26/11/2019 10:06:40
- *       Revision:  none
- *       Compiler:  gcc
- *
- *         Author:  Guillerme Duvillié (mfreeze), guillerme@duvillie.eu
- *   Organization:  
- *
- * =====================================================================================
- */
-
+//MKHALLATI Hassan 000459680
 #include "personal_strings.h"
 #include <stdlib.h>
 #include <stdio.h>

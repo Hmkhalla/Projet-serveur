@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <pthread.h>
+
 typedef struct
 {
 	char* pseudo;
@@ -18,12 +18,7 @@ typedef struct
 	player* table;
 } structArray;
 
-typedef struct  {
-    int socket_client;
-    pthread_mutex_t mutex;
-}arg_struct;
-
-structArray* add_player(structArray* table, char* pseudo, int *indexPlayer);
+int add_player(structArray* table, char* pseudo, int *indexPlayer);
 /*
 	Rajoute le struct joueur au tableau et retourne le pointeur de la structure.
 	Retourne le pointeur NULL en cas d'erreur et libère la mémoire précedement allouée.
