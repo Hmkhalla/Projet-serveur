@@ -14,6 +14,7 @@
 #include <errno.h>
 #include "personal_strings.h"
 
+#define max(x,y) ( x < y ? y : x )
 
 /*
  * ===  FUNCTION  ======================================================================

@@ -224,7 +224,7 @@ void * manage_client (void *data)
         pseudo[taille_recue] = '\0';
         if (taille_recue != longueur_chaine)
         {
-            fprintf (stderr, "Réception partielle du pseudo: %s\n", pseudo);
+            fprintf (stderr, "Réception partielle du pseudo\n");
             free_anagram (&anagram);
 			free(str_buffer);
 			free(pseudo);
@@ -249,13 +249,12 @@ void * manage_client (void *data)
     }
 	players = add_player(players, pseudo, &indexPlayer);
 	if (!players){
-		fprintf (stderr, "Erreur ajout du joueur au tableau. Mémoire corrompue\n", pseudo);
+		fprintf (stderr, "Erreur ajout du joueur au tableau. Mémoire corrompue\n");
 		free_anagram (&anagram);
 		free(str_buffer);
 		free(pseudo);
-		free_dico (&dico);
 		close (socket_client);
-		return EXIT_FAILURE;
+		pthread_exit(NULL);
 	}
 	pthread_mutex_unlock (&mutex);
 
